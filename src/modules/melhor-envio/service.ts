@@ -56,7 +56,7 @@ export class MelhorEnvioFulfillmentService extends AbstractFulfillmentProviderSe
     ]
   }
 
-  async canCalculate(data: Record<string, unknown>) {
+  async canCalculate(data: any) {
     return true
   }
 
@@ -145,7 +145,7 @@ export class MelhorEnvioFulfillmentService extends AbstractFulfillmentProviderSe
     _order: any,
     _fulfillment: any
   ) {
-    return { data }
+    return { data, labels: [] }
   }
 
   async cancelFulfillment(data: Record<string, unknown>) {
@@ -167,8 +167,8 @@ export class MelhorEnvioFulfillmentService extends AbstractFulfillmentProviderSe
   async retrieveDocuments(
     _fulfillmentData: Record<string, unknown>,
     _documentType: string
-  ) {
-    return []
+  ): Promise<void> {
+    return
   }
 }
 

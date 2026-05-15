@@ -19,7 +19,7 @@ export async function POST(req: MedusaStoreRequest, res: MedusaResponse) {
 
   try {
     const authModule = req.scope.resolve(Modules.AUTH)
-    await authModule.deleteAuthIdentities(authIdentityId)
+    await authModule.deleteAuthIdentities([authIdentityId])
   } catch (err) {
     console.warn("[delete-account] Não foi possível excluir a identidade de auth:", err)
   }
