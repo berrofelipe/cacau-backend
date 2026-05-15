@@ -38,6 +38,7 @@ module.exports = defineConfig({
             id: "melhor-envio",
             options: {
               token: process.env.MELHOR_ENVIO_TOKEN,
+              sandbox: process.env.MELHOR_ENVIO_SANDBOX === "true",
             },
           },
         ],
