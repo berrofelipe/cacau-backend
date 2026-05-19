@@ -6,18 +6,18 @@ const UNIT_HEIGHT_CM  = 3
 const UNIT_WIDTH_CM   = 12
 const UNIT_LENGTH_CM  = 17
 
-const ORIGIN_ZIP = "37540000" // Santa Rita do Sapucaí, MG
+const ORIGIN_ZIP = "01416000"
 
 const ME_PROD    = "https://www.melhorenvio.com.br/api/v2"
 const ME_SANDBOX = "https://sandbox.melhorenvio.com.br/api/v2"
 
-// Flat rates (cents) used when MELHOR_ENVIO_TOKEN is not configured
+// Flat rates (BRL) used when MELHOR_ENVIO_TOKEN is not configured
 const FLAT_RATES: Record<string, number> = {
-  pac:             2800,
-  sedex:           4800,
-  "sedex-10":      6500,
-  "jadlog-package":3200,
-  "jadlog-com":    2500,
+  pac:             28,
+  sedex:           48,
+  "sedex-10":      65,
+  "jadlog-package":32,
+  "jadlog-com":    25,
 }
 
 // Melhor Envio service IDs
@@ -80,17 +80,17 @@ export class MelhorEnvioFulfillmentService extends AbstractFulfillmentProviderSe
     try {
       const items = ((cart as any).items ?? []) as any[]
       const qty   = items.reduce((s: number, i: any) => s + (i.quantity ?? 1), 0) || 1
-      const rows  = Math.ceil(Math.sqrt(qty))
 
+      // unit_price is in BRL major units (not centavos) in Medusa v2
       const insuranceValue = items.reduce(
-        (s: number, i: any) => s + ((i.unit_price ?? 0) / 100) * (i.quantity ?? 1), 0
+        (s: number, i: any) => s + (i.unit_price ?? 0) * (i.quantity ?? 1), 0
       )
 
       const body = {
         from:    { postal_code: ORIGIN_ZIP },
         to:      { postal_code: destZip },
         package: {
-          height: Math.max(UNIT_HEIGHT_CM * rows, UNIT_HEIGHT_CM),
+          height: Math.max(UNIT_HEIGHT_CM * qty, UNIT_HEIGHT_CM),
           width:  UNIT_WIDTH_CM,
           length: UNIT_LENGTH_CM,
           weight: Math.max(UNIT_WEIGHT_KG * qty, 0.1),
@@ -115,8 +115,9 @@ export class MelhorEnvioFulfillmentService extends AbstractFulfillmentProviderSe
       const match = results.find((r: any) => r.id === serviceId && r.price)
 
       if (match?.price) {
+        // Return in BRL major units — Medusa v2 passes this directly to getSmallestUnit
         return {
-          calculated_amount: Math.round(parseFloat(match.price) * 100),
+          calculated_amount: parseFloat(match.price),
           is_calculated_price_tax_inclusive: false,
         }
       }

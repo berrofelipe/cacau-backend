@@ -5,7 +5,7 @@ import { Resend } from "resend"
 const WC_URL    = "https://cacaudoceu.com.br"
 const WC_KEY    = process.env.WC_KEY    || ""
 const WC_SECRET = process.env.WC_SECRET || ""
-const ADMIN_EMAIL = process.env.ADMIN_REPORT_EMAIL || "beraldo.felipe@gmail.com"
+const ADMIN_EMAIL = process.env.ADMIN_REPORT_EMAIL
 const FROM_EMAIL  = process.env.RESEND_FROM || "noreply@cacaudoceu.com.br"
 
 const wcAuth = () =>
@@ -220,6 +220,10 @@ export default async function weeklyReportJob(container: MedusaContainer) {
     console.warn("[weekly-report] RESEND_API_KEY não configurada — pulando envio.")
     return
   }
+  if (!ADMIN_EMAIL) {
+    console.warn("[weekly-report] ADMIN_REPORT_EMAIL não configurada — pulando envio.")
+    return
+  }
 
   const now   = new Date()
   const d7    = new Date(now.getTime() - 7  * 86400000)
@@ -243,7 +247,7 @@ export default async function weeklyReportJob(container: MedusaContainer) {
   const resend = new Resend(resendKey)
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
-    to:   ADMIN_EMAIL,
+    to:   ADMIN_EMAIL!,
     subject: `Cacau do Céu · Relatório ${fmt(d7)} → ${fmt(now)}`,
     html,
   })
