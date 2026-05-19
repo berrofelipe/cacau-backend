@@ -29,3 +29,6 @@ Thumbs.db
 # Uploads & coverage
 /uploads
 /coverage
+
+.vercel
+.env*.local

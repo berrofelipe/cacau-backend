@@ -153,6 +153,78 @@ export function buildPasswordResetEmail(resetLink: string): string {
     </div>`)
 }
 
+export function buildOrderConfirmationEmail(order: {
+  displayId: string | number
+  email: string
+  firstName: string
+  items: Array<{ title: string; quantity: number; unitPrice: number }>
+  subtotal: number
+  shippingTotal: number
+  total: number
+  shippingAddress?: {
+    address1?: string; address2?: string; city?: string; province?: string; zip?: string
+  } | null
+  storeUrl: string
+}): string {
+  const BRL = (amount: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount)
+
+  const itemRows = order.items.map(item => `
+    <tr>
+      <td style="font-family:Georgia,'Times New Roman',serif;font-size:14px;color:#291c0e;padding:10px 0;border-bottom:1px solid #d5cec4">
+        ${item.title} <span style="color:#5b4030">× ${item.quantity}</span>
+      </td>
+      <td align="right" style="font-family:'Courier New',monospace;font-size:12px;color:#291c0e;padding:10px 0;border-bottom:1px solid #d5cec4;white-space:nowrap">
+        ${BRL(item.unitPrice * item.quantity)}
+      </td>
+    </tr>`).join('')
+
+  const addrLine = order.shippingAddress
+    ? [order.shippingAddress.address1, order.shippingAddress.city, order.shippingAddress.province]
+        .filter(Boolean).join(', ')
+    : ''
+
+  return wrap(`
+    <div style="padding:52px 52px 0">
+      ${fieldLabel("Pedido confirmado")}
+      <div style="font-family:'Cormorant Garamond',Georgia,serif;font-weight:300;font-size:64px;line-height:0.93;color:#291c0e;letter-spacing:-0.015em">
+        Obrigado<br>
+        <span style="font-style:italic;color:#7a4820">pelo pedido.</span>
+      </div>
+      <p style="font-family:Georgia,'Times New Roman',serif;font-size:15px;color:#5b4030;margin-top:28px;line-height:1.85;max-width:42ch">
+        Olá${order.firstName ? `, ${order.firstName}` : ''}. Seu pedido <strong style="color:#291c0e">#${order.displayId}</strong> foi confirmado e está sendo preparado com cuidado.
+      </p>
+    </div>
+
+    <div style="padding:32px 52px 0">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${itemRows}
+        <tr>
+          <td style="font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:#7a5535;padding:14px 0 4px">Subtotal</td>
+          <td align="right" style="font-family:'Courier New',monospace;font-size:12px;color:#5b4030;padding:14px 0 4px">${BRL(order.subtotal)}</td>
+        </tr>
+        <tr>
+          <td style="font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:#7a5535;padding:4px 0">Frete</td>
+          <td align="right" style="font-family:'Courier New',monospace;font-size:12px;color:#5b4030;padding:4px 0">${BRL(order.shippingTotal)}</td>
+        </tr>
+        <tr>
+          <td style="font-family:'Cormorant Garamond',Georgia,serif;font-size:20px;color:#291c0e;padding:14px 0 0;border-top:2px solid #291c0e">Total</td>
+          <td align="right" style="font-family:'Cormorant Garamond',Georgia,serif;font-size:20px;color:#291c0e;padding:14px 0 0;border-top:2px solid #291c0e;white-space:nowrap">${BRL(order.total)}</td>
+        </tr>
+      </table>
+    </div>
+
+    ${addrLine ? `
+    <div style="padding:28px 52px 0">
+      <p style="font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:#7a5535;margin:0 0 6px">Endereço de entrega</p>
+      <p style="font-family:Georgia,'Times New Roman',serif;font-size:14px;color:#5b4030;margin:0;line-height:1.7">${addrLine}</p>
+    </div>` : ''}
+
+    <div style="padding:40px 52px 52px">
+      ${ctaButton(`${order.storeUrl}/conta/pedidos`, "Acompanhar pedido")}
+    </div>`)
+}
+
 export function buildEmailVerificationEmail(verifyLink: string, newEmail: string): string {
   return wrap(`
     <div style="padding:52px 52px 0">
