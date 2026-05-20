@@ -1,78 +1,93 @@
-> ⚠️ This repository is now deprecated. Use the [dtc-starter](https://github.com/medusajs/dtc-starter) instead.
+# Cacau do Céu — Backend
 
-<p align="center">
-  <a href="https://www.medusajs.com">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/59018053/229103275-b5e482bb-4601-46e6-8142-244f531cebdb.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://user-images.githubusercontent.com/59018053/229103726-e5b529a3-9b3f-4970-8a1f-c6af37f087bf.svg">
-    <img alt="Medusa logo" src="https://user-images.githubusercontent.com/59018053/229103726-e5b529a3-9b3f-4970-8a1f-c6af37f087bf.svg">
-    </picture>
-  </a>
-</p>
-<h1 align="center">
-  Medusa
-</h1>
+Medusa v2 commerce API. Owns everything commerce-related: product catalogue, cart, checkout, payments, order management, customer accounts, transactional emails, and shipping rate calculation.
 
-<h4 align="center">
-  <a href="https://docs.medusajs.com">Documentation</a> |
-  <a href="https://www.medusajs.com">Website</a>
-</h4>
+## Architecture
 
-<p align="center">
-  Building blocks for digital commerce
-</p>
-<p align="center">
-  <a href="https://github.com/medusajs/medusa/blob/master/CONTRIBUTING.md">
-    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat" alt="PRs welcome!" />
-  </a>
-    <a href="https://www.producthunt.com/posts/medusa"><img src="https://img.shields.io/badge/Product%20Hunt-%231%20Product%20of%20the%20Day-%23DA552E" alt="Product Hunt"></a>
-  <a href="https://discord.gg/xpCwq3Kfn8">
-    <img src="https://img.shields.io/badge/chat-on%20discord-7289DA.svg" alt="Discord Chat" />
-  </a>
-  <a href="https://twitter.com/intent/follow?screen_name=medusajs">
-    <img src="https://img.shields.io/twitter/follow/medusajs.svg?label=Follow%20@medusajs" alt="Follow @medusajs" />
-  </a>
-</p>
+```mermaid
+graph TD
+    FE["Frontend\nVercel"]         -->|Storefront API /store/*| BE
+    ADMIN["Admin Panel\n/app"]     -->|Admin API /admin/*|      BE
 
-## Compatibility
+    subgraph BE ["Medusa v2 — Railway"]
+        API["HTTP API"]
+        SUBS["Subscribers\norder · customer · password-reset"]
+        ME_MOD["Melhor Envio\nfulfillment provider"]
+    end
 
-This starter is compatible with versions >= 2 of `@medusajs/medusa`. 
+    BE  -->|PostgreSQL|              DB["Supabase DB"]
+    BE  -->|Charges / webhooks|      STRIPE["Stripe"]
+    BE  -->|Shipping rate quotes|    ME["Melhor Envio"]
+    BE  -->|Transactional emails|    RESEND["Resend"]
+```
 
-## Getting Started
+## Responsibilities
 
-Visit the [Quickstart Guide](https://docs.medusajs.com/learn/installation) to set up a server.
+| Domain | Details |
+|---|---|
+| Products | Catalogue, variants, pricing per region, inventory levels, metadata fields (`pct`, `swatch`, `fruit`, `subtitle`, `num`) |
+| Cart | Create/update, line items, region pricing, sales channel scoping |
+| Checkout | Shipping address, shipping method selection, Stripe payment session |
+| Orders | Order lifecycle, fulfillment status, display ID |
+| Customers | Registration, JWT auth, addresses, password reset, email change |
+| Payments | Stripe provider — `automaticPaymentMethods`, webhook processing at `/hooks/payment/stripe_stripe` |
+| Shipping | Custom Melhor Envio fulfillment provider (`src/modules/melhor-envio`) — sandbox in dev, live in production |
+| Emails | Branded HTML templates for order confirmation, welcome, and password reset, sent via Resend |
 
-Visit the [Docs](https://docs.medusajs.com/learn/installation#get-started) to learn more about our system requirements.
+## Custom modules
 
-## What is Medusa
+```
+src/
+  modules/
+    melhor-envio/         Medusa fulfillment provider — calls Melhor Envio API for shipping quotes
+  subscribers/
+    order-placed.ts       Sends order confirmation email on order.placed
+    customer-created.ts   Sends welcome email on customer.created
+    auth-password-reset.ts Sends reset link on auth.password_reset
+  utils/
+    email.ts              Branded HTML email templates (matches site design system)
+  api/                    Custom endpoints: /store/request-email-change, /store/verify-email-change,
+                          /store/delete-account
+```
 
-Medusa is a set of commerce modules and tools that allow you to build rich, reliable, and performant commerce applications without reinventing core commerce logic. The modules can be customized and used to build advanced ecommerce stores, marketplaces, or any product that needs foundational commerce primitives. All modules are open-source and freely available on npm.
+## Local development
 
-Learn more about [Medusa’s architecture](https://docs.medusajs.com/learn/introduction/architecture) and [commerce modules](https://docs.medusajs.com/learn/fundamentals/modules/commerce-modules) in the Docs.
+```bash
+cp .env.example .env   # fill in values — see comments in .env.example
+npm install
+npm run dev            # starts at http://localhost:9000
+                       # admin panel at http://localhost:9000/app
+```
 
-## Build with AI Agents
+No linter or test suite is required to run locally. The Jest integration tests in `integration-tests/` spin up a full Medusa instance and are optional.
 
-### Claude Code Plugin
+## Environment variables
 
-If you use AI agents like Claude Code, check out the [medusa-dev Claude Code plugin](https://github.com/medusajs/medusa-claude-plugins).
+See `.env.example` for the full reference. Key variables that differ between environments:
 
-### Other Agents
+| Variable | Dev (local) | Production (Railway) |
+|---|---|---|
+| `STORE_URL` | `http://localhost:5173` | `https://cacaudoceu.com.br` |
+| `STORE_CORS` | includes `localhost:5173` | includes production + Vercel domains |
+| `STRIPE_SECRET_KEY` | `sk_test_...` | `sk_live_...` |
+| `STRIPE_WEBHOOK_SECRET` | from `stripe listen` CLI | from Stripe dashboard webhook |
+| `MELHOR_ENVIO_SANDBOX` | `true` | `false` |
+| `MELHOR_ENVIO_TOKEN` | sandbox token | production token |
 
-If you use AI agents other than Claude Code, copy the [skills directory](https://github.com/medusajs/medusa-claude-plugins/tree/main/plugins/medusa-dev/skills) into your agent's relevant `skills` directory.
+All production values live exclusively in the Railway dashboard — never in committed files.
 
-### MCP Server
+## Deployment
 
-You can also add the MCP server `https://docs.medusajs.com/mcp` to your AI agents to answer questions related to Medusa. The `medusa-dev` Claude Code plugin includes this MCP server by default.
+Hosted on **Railway**. Medusa Admin is disabled in production (`admin.disable: true` in `medusa-config.ts`) — use the Railway-hosted instance or a separate admin deployment to manage products and orders.
 
-## Community & Contributions
+Database: **Supabase PostgreSQL** (pooled connection via `aws-1-us-west-1.pooler.supabase.com`).
 
-The community and core team are available in [GitHub Discussions](https://github.com/medusajs/medusa/discussions), where you can ask for support, discuss roadmap, and share ideas.
+## Health check
 
-Join our [Discord server](https://discord.com/invite/medusajs) to meet other community members.
+From the project root:
 
-## Other channels
+```bash
+node health-check.mjs --backend https://cacaudoceu.site
+```
 
-- [GitHub Issues](https://github.com/medusajs/medusa/issues)
-- [Twitter](https://twitter.com/medusajs)
-- [LinkedIn](https://www.linkedin.com/company/medusajs)
-- [Medusa Blog](https://medusajs.com/blog/)
+Run `node health-check.mjs --checklist` for the full domain migration checklist.
