@@ -12,7 +12,7 @@ if (process.env.NODE_ENV === 'production') {
 
 module.exports = defineConfig({
   admin: {
-    disable: process.env.NODE_ENV === 'production',
+    disable: process.env.DISABLE_ADMIN === 'true',
     vite: (config) => ({
       ...config,
       // Move the dep cache inside the Vite root so Vite doesn't generate
