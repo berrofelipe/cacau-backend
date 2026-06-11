@@ -1,0 +1,46 @@
+name: Keep-alive & health check
+
+# Two jobs, two purposes:
+#  1. ping-backend  — verifies production is serving and runs a real catalog
+#     query (DB activity). A failure here emails the repo owner.
+#  2. ping-database — touches Supabase directly so the free-tier project is
+#     never paused for inactivity, even while the backend is down.
+#     Requires the SUPABASE_DB_URL repo secret; skipped silently if unset.
+#
+# Note: GitHub disables scheduled workflows after 60 days without repo
+# activity. Any push (or a manual run) re-arms it.
+
+on:
+  schedule:
+    - cron: '17 */6 * * *' # every 6 hours
+  workflow_dispatch:
+
+jobs:
+  ping-backend:
+    name: Production health + catalog query
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health endpoint
+        run: curl -fsS --max-time 30 --retry 3 --retry-delay 20 https://cacaudoceu.site/health
+
+      - name: Store API (exercises the database)
+        # The publishable key is client-side by design (already shipped in the
+        # storefront bundle) — safe to keep in the workflow.
+        run: |
+          curl -fsS --max-time 30 --retry 3 --retry-delay 20 \
+            -H "x-publishable-api-key: pk_56a1d777d3e14d983f069f8173129531535470680d1a7b392d6650628343725c" \
+            "https://cacaudoceu.site/store/products?limit=1" > /dev/null
+
+  ping-database:
+    name: Supabase keep-alive (direct)
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - name: SELECT 1
+        if: env.SUPABASE_DB_URL != ''
+        run: psql "$SUPABASE_DB_URL" -c 'SELECT 1;'
+
+      - name: Secret not configured (skipping)
+        if: env.SUPABASE_DB_URL == ''
+        run: echo "SUPABASE_DB_URL secret not set — direct DB keep-alive skipped."
