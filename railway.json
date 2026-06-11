@@ -1,7 +1,7 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "buildCommand": "npm ci --include=dev && npm run build && cd .medusa/server && npm ci --include=dev"
+    "buildCommand": "npm ci --include=dev && npm run build && cd .medusa/server && npm install --legacy-peer-deps --include=dev"
   },
   "deploy": {
     "startCommand": "cd .medusa/server && npm run start",
