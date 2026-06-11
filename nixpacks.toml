@@ -2,7 +2,9 @@
 cmds = ["npm install --include=dev"]
 
 [phases.build]
-cmds = ["npm run build"]
+# medusa build outputs a standalone server (admin included) to .medusa/server —
+# production must run from there, not the project root
+cmds = ["npm run build", "cd .medusa/server && npm install"]
 
 [start]
-cmd = "npm start"
+cmd = "cd .medusa/server && npm run predeploy && npm run start"

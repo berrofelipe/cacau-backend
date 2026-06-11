@@ -12,7 +12,9 @@ if (process.env.NODE_ENV === 'production') {
 
 module.exports = defineConfig({
   admin: {
-    disable: false,
+    disable: process.env.DISABLE_MEDUSA_ADMIN === 'true',
+    // Public URL the admin panel uses to reach the API in production
+    ...(process.env.MEDUSA_BACKEND_URL ? { backendUrl: process.env.MEDUSA_BACKEND_URL } : {}),
     vite: (config) => ({
       ...config,
       // Move the dep cache inside the Vite root so Vite doesn't generate
