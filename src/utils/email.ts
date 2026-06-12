@@ -166,8 +166,14 @@ export function buildOrderConfirmationEmail(order: {
   } | null
   storeUrl: string
 }): string {
-  const BRL = (amount: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount)
+  // Whole values drop the ",00" — matches the storefront's premium pricing style
+  const BRL = (amount: number) => {
+    const n = Math.round((Number(amount) || 0) * 100) / 100
+    return 'R$ ' + n.toLocaleString('pt-BR', {
+      minimumFractionDigits: n % 1 === 0 ? 0 : 2,
+      maximumFractionDigits: 2,
+    })
+  }
 
   const itemRows = order.items.map(item => `
     <tr>
@@ -222,6 +228,38 @@ export function buildOrderConfirmationEmail(order: {
 
     <div style="padding:40px 52px 52px">
       ${ctaButton(`${order.storeUrl}/conta/pedidos`, "Acompanhar pedido")}
+    </div>`)
+}
+
+export function buildOrderShippedEmail(order: {
+  displayId: string | number
+  firstName: string
+  trackingNumber: string
+  trackingUrl: string
+  storeUrl: string
+}): string {
+  return wrap(`
+    <div style="padding:52px 52px 0">
+      ${fieldLabel("Pedido enviado")}
+      <div style="font-family:'Cormorant Garamond',Georgia,serif;font-weight:300;font-size:64px;line-height:0.93;color:#291c0e;letter-spacing:-0.015em">
+        A caminho<br>
+        <span style="font-style:italic;color:#7a4820">até você.</span>
+      </div>
+      <p style="font-family:Georgia,'Times New Roman',serif;font-size:15px;color:#5b4030;margin-top:28px;line-height:1.85;max-width:42ch">
+        Olá${order.firstName ? `, ${order.firstName}` : ''}. Seu pedido <strong style="color:#291c0e">#${order.displayId}</strong> foi postado e já está a caminho.
+      </p>
+      ${order.trackingNumber ? `
+      <p style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:0.14em;color:#7a5535;margin-top:20px">
+        CÓDIGO DE RASTREIO: <strong style="color:#291c0e">${order.trackingNumber}</strong>
+      </p>` : ''}
+    </div>
+    <div style="padding:40px 52px 12px">
+      ${order.trackingUrl ? ctaButton(order.trackingUrl, "Rastrear pedido") : ctaButton(`${order.storeUrl}/conta/pedidos`, "Acompanhar pedido")}
+    </div>
+    <div style="padding:0 52px 52px">
+      <p style="font-family:'Courier New',monospace;font-size:8px;color:#b0a090;margin-top:16px;line-height:1.7">
+        Você também acompanha em ${order.storeUrl}/conta/pedidos
+      </p>
     </div>`)
 }
 

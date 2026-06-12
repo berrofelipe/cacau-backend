@@ -189,6 +189,7 @@ export function configReport(): Array<{ name: string; set: boolean; required: bo
   const optional = [
     "RESEND_API_KEY", "RESEND_FROM",
     "MELHOR_ENVIO_TOKEN", "MELHOR_ENVIO_SANDBOX",
+    "MELHOR_ENVIO_FROM_DOCUMENT", "MELHOR_ENVIO_FROM_CNPJ",
     "MEDUSA_BACKEND_URL", "STORE_URL", "ADMIN_REPORT_EMAIL",
   ]
   return [
