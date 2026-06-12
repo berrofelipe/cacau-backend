@@ -30,18 +30,26 @@ export default async function orderPlacedHandler({
     typeof v === "object" && v !== null && "value" in v ? v.value : v
   ) || 0
 
+  // retrieveOrder() does not compute order.subtotal/shipping_total/total —
+  // they come back undefined. Derive them from the loaded relations instead.
+  const emailItems = (order.items || []).map((item: any) => ({
+    title:     item.title || item.product_title || "",
+    quantity:  item.quantity || 1,
+    unitPrice: toNum(item.unit_price),
+  }))
+  const subtotal      = emailItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
+  const shippingTotal = (order.shipping_methods || []).reduce(
+    (s: number, m: any) => s + toNum(m.amount), 0
+  )
+
   const html = buildOrderConfirmationEmail({
     displayId:    order.display_id || data.id.slice(0, 8).toUpperCase(),
     email,
     firstName:    order.shipping_address?.first_name || "",
-    items: (order.items || []).map((item: any) => ({
-      title:     item.title || item.product_title || "",
-      quantity:  item.quantity || 1,
-      unitPrice: toNum(item.unit_price),
-    })),
-    subtotal:     toNum(order.subtotal),
-    shippingTotal:toNum(order.shipping_total),
-    total:        toNum(order.total),
+    items: emailItems,
+    subtotal,
+    shippingTotal,
+    total:        subtotal + shippingTotal,
     shippingAddress: order.shipping_address ? {
       address1: order.shipping_address.address_1 || "",
       address2: order.shipping_address.address_2 || "",
