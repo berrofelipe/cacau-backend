@@ -11,5 +11,14 @@ medusaIntegrationTestRunner({
         expect(response.status).toEqual(200)
       })
     })
+
+    describe("Detailed health status", () => {
+      it("requires admin auth", async () => {
+        const response = await api
+          .get('/admin/health-status')
+          .catch((err: any) => err.response)
+        expect(response.status).toEqual(401)
+      })
+    })
   },
 })
