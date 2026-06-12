@@ -25,6 +25,15 @@ type HealthReport = {
   node_env: string
   checks: ServiceCheck[]
   config: Array<{ name: string; set: boolean; required: boolean }>
+  monitor: {
+    consecutive_failures: number
+    alerted: boolean
+    last_run_at: string | null
+    last_failing: string[]
+    alert_threshold: number
+    interval_minutes: number
+    alert_email: string
+  }
 }
 
 const STATUS_COLOR: Record<ServiceCheck["status"], "green" | "orange" | "red" | "grey"> = {
@@ -151,6 +160,43 @@ const HealthPage = () => {
           </div>
         )}
       </Container>
+
+      {report?.monitor && (
+        <Container className="divide-y p-0">
+          <div className="flex items-center justify-between px-6 py-4">
+            <div>
+              <Heading level="h2">Monitor automático</Heading>
+              <Text className="text-ui-fg-subtle" size="small">
+                Verifica os serviços a cada {report.monitor.interval_minutes} min no servidor e envia e-mail para{" "}
+                <span className="font-medium">{report.monitor.alert_email}</span> após{" "}
+                {report.monitor.alert_threshold} falhas consecutivas (configurável via ADMIN_REPORT_EMAIL).
+              </Text>
+            </div>
+            <StatusBadge
+              color={report.monitor.alerted ? "red" : report.monitor.consecutive_failures > 0 ? "orange" : "green"}
+            >
+              {report.monitor.alerted
+                ? "Alerta enviado — aguardando recuperação"
+                : report.monitor.consecutive_failures > 0
+                  ? `Falhas: ${report.monitor.consecutive_failures}/${report.monitor.alert_threshold}`
+                  : "Vigiando"}
+            </StatusBadge>
+          </div>
+          <div className="flex items-center gap-x-6 px-6 py-3">
+            <Text size="xsmall" className="text-ui-fg-muted">
+              Última rodada do monitor:{" "}
+              {report.monitor.last_run_at
+                ? new Date(report.monitor.last_run_at).toLocaleTimeString("pt-BR")
+                : "ainda não rodou (roda a cada 5 min)"}
+            </Text>
+            {report.monitor.last_failing.length > 0 && (
+              <Text size="xsmall" className="text-ui-fg-error">
+                Falhando: {report.monitor.last_failing.join(", ")}
+              </Text>
+            )}
+          </div>
+        </Container>
+      )}
 
       {report && (
         <Container className="divide-y p-0">
