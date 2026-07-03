@@ -3,9 +3,10 @@ import { Modules } from "@medusajs/framework/utils"
 import { Resend } from "resend"
 import crypto from "crypto"
 import { buildEmailVerificationEmail } from "../../../utils/email"
+import { getSigningSecret } from "../../../lib/security/secret"
 
 function signToken(payload: Record<string, unknown>): string {
-  const secret = process.env.JWT_SECRET || "supersecret"
+  const secret = getSigningSecret()
   const data = Buffer.from(JSON.stringify(payload)).toString("base64url")
   const sig = crypto.createHmac("sha256", secret).update(data).digest("base64url")
   return `${data}.${sig}`

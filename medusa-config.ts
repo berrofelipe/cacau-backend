@@ -2,13 +2,28 @@ import { loadEnv, defineConfig } from '@medusajs/framework/utils'
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
-if (process.env.NODE_ENV === 'production') {
-  const insecureDefaults = ['supersecret', 'secret', 'changeme', '']
-  if (insecureDefaults.includes(process.env.JWT_SECRET ?? ''))
-    throw new Error('JWT_SECRET must be set to a secure random value in production')
-  if (insecureDefaults.includes(process.env.COOKIE_SECRET ?? ''))
-    throw new Error('COOKIE_SECRET must be set to a secure random value in production')
+// Fail closed on weak secrets. Only an explicit development/test environment may
+// run without a real secret — every other environment (including an unset
+// NODE_ENV on the host) must provide one, so we never sign auth/session tokens
+// with a public default that would let anyone forge them.
+const INSECURE_SECRETS = ['', 'supersecret', 'secret', 'changeme', 'change-me-in-production']
+const IS_DEV = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
+
+function requireSecret(name: 'JWT_SECRET' | 'COOKIE_SECRET'): string {
+  const value = process.env[name] ?? ''
+  if (INSECURE_SECRETS.includes(value)) {
+    if (!IS_DEV)
+      throw new Error(
+        `${name} must be set to a secure random value ` +
+        `(NODE_ENV is "${process.env.NODE_ENV ?? 'unset'}", not development/test)`
+      )
+    return 'dev-insecure-do-not-use-in-prod'
+  }
+  return value
 }
+
+const JWT_SECRET = requireSecret('JWT_SECRET')
+const COOKIE_SECRET = requireSecret('COOKIE_SECRET')
 
 module.exports = defineConfig({
   admin: {
@@ -31,8 +46,8 @@ module.exports = defineConfig({
       storeCors: process.env.STORE_CORS!,
       adminCors: process.env.ADMIN_CORS!,
       authCors: process.env.AUTH_CORS!,
-      jwtSecret: process.env.JWT_SECRET || "supersecret",
-      cookieSecret: process.env.COOKIE_SECRET || "supersecret",
+      jwtSecret: JWT_SECRET,
+      cookieSecret: COOKIE_SECRET,
     }
   },
   modules: [

@@ -1,9 +1,10 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { Modules } from "@medusajs/framework/utils"
 import crypto from "crypto"
+import { getSigningSecret } from "../../../lib/security/secret"
 
 function verifyToken(token: string): Record<string, unknown> | null {
-  const secret = process.env.JWT_SECRET || "supersecret"
+  const secret = getSigningSecret()
   const parts = token.split(".")
   if (parts.length !== 2) return null
   const [data, sig] = parts
