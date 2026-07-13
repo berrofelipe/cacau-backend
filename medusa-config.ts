@@ -51,6 +51,35 @@ module.exports = defineConfig({
     }
   },
   modules: [
+    // Product images: S3-compatible object storage (Supabase Storage / R2 / S3)
+    // behind a CDN. Only enabled when S3_BUCKET is configured — uploads through
+    // Medusa Admin land in the bucket and the public CDN URL is stored on the
+    // product record.
+    ...(process.env.S3_BUCKET
+      ? [
+          {
+            resolve: "@medusajs/medusa/file",
+            options: {
+              providers: [
+                {
+                  resolve: "@medusajs/medusa/file-s3",
+                  id: "s3",
+                  options: {
+                    file_url: process.env.S3_FILE_URL,
+                    access_key_id: process.env.S3_ACCESS_KEY_ID,
+                    secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
+                    region: process.env.S3_REGION || "auto",
+                    bucket: process.env.S3_BUCKET,
+                    endpoint: process.env.S3_ENDPOINT,
+                    // Supabase Storage (and MinIO) require path-style URLs
+                    additional_client_config: { forcePathStyle: true },
+                  },
+                },
+              ],
+            },
+          },
+        ]
+      : []),
     {
       resolve: "@medusajs/payment",
       options: {

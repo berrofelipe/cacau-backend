@@ -1,5 +1,6 @@
 import type { MedusaContainer } from "@medusajs/framework"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { omieCall, omieConfigured, OmieError } from "../lib/omie/client"
 
 // Shared service probes, used by both the admin diagnostics endpoint
 // (src/api/admin/health-status) and the 5-minute monitor job
@@ -164,12 +165,40 @@ async function checkMelhorEnvio(): Promise<ServiceCheck> {
   }
 }
 
+async function checkOmie(): Promise<ServiceCheck> {
+  const base = { service: "omie", label: "ERP (Omie)" }
+  if (!omieConfigured()) {
+    return { ...base, status: "not_configured", latency_ms: null, diagnosis: "config", message: "OMIE_APP_KEY/OMIE_APP_SECRET não configuradas — pedidos do site não entram no ERP" }
+  }
+  const started = Date.now()
+  try {
+    await omieCall("geral/clientes", "ListarClientesResumido", { pagina: 1, registros_por_pagina: 1 })
+    const warnings: string[] = []
+    if (!process.env.OMIE_CODIGO_CATEGORIA) warnings.push("OMIE_CODIGO_CATEGORIA ausente")
+    if (!process.env.OMIE_CODIGO_CONTA_CORRENTE) warnings.push("OMIE_CODIGO_CONTA_CORRENTE ausente")
+    const latency = Date.now() - started
+    return warnings.length
+      ? { ...base, status: "degraded", latency_ms: latency, diagnosis: "config", message: `API OK, mas: ${warnings.join("; ")} — o Omie pode recusar pedidos sem categoria/conta` }
+      : { ...base, status: "ok", latency_ms: latency, diagnosis: null, message: "API autenticada — pedidos e estoque sincronizando" }
+  } catch (err) {
+    const latency = Date.now() - started
+    if (err instanceof OmieError) {
+      if (/app_key|app_secret|chave|inv[aá]lid/i.test(err.message)) {
+        return { ...base, status: "error", latency_ms: latency, diagnosis: "auth", message: `Credenciais Omie rejeitadas: ${err.message}` }
+      }
+      return { ...base, status: "error", latency_ms: latency, diagnosis: "service", message: `Omie respondeu com erro: ${err.message}` }
+    }
+    return { ...base, status: "error", latency_ms: latency, ...classifyFetchError(err) }
+  }
+}
+
 export async function runHealthChecks(container: MedusaContainer): Promise<ServiceCheck[]> {
   return Promise.all([
     checkDatabase(container),
     checkStripe(),
     checkResend(),
     checkMelhorEnvio(),
+    checkOmie(),
   ])
 }
 
@@ -191,6 +220,10 @@ export function configReport(): Array<{ name: string; set: boolean; required: bo
     "MELHOR_ENVIO_TOKEN", "MELHOR_ENVIO_SANDBOX",
     "MELHOR_ENVIO_FROM_DOCUMENT", "MELHOR_ENVIO_FROM_CNPJ",
     "MEDUSA_BACKEND_URL", "STORE_URL", "ADMIN_REPORT_EMAIL",
+    "OMIE_APP_KEY", "OMIE_APP_SECRET",
+    "OMIE_CODIGO_CATEGORIA", "OMIE_CODIGO_CONTA_CORRENTE",
+    "OMIE_ETAPA", "OMIE_CODIGO_PARCELA", "OMIE_FRETE_MODALIDADE",
+    "OMIE_CODIGO_LOCAL_ESTOQUE", "OMIE_STOCK_LOCATION_ID",
   ]
   return [
     ...required.map((name) => ({ name, set: !!process.env[name], required: true })),

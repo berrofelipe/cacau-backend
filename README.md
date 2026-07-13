@@ -19,7 +19,43 @@ graph TD
     BE  -->|Charges / webhooks|      STRIPE["Stripe"]
     BE  -->|Shipping rate quotes|    ME["Melhor Envio"]
     BE  -->|Transactional emails|    RESEND["Resend"]
+    BE  <-->|Orders out / stock in|  OMIE["Omie ERP"]
 ```
+
+## Omie ERP integration
+
+Omie is the system of record for the whole operation (physical stores, wholesale,
+marketplaces via Omie.Hub, NF-e, financials). The site integrates with it in two
+directions:
+
+- **Orders out** — `src/subscribers/order-placed-omie.ts` runs on `order.placed`:
+  upserts the customer (`UpsertCliente`) and creates the sales order
+  (`IncluirPedido`) with `codigo_pedido_integracao = CDCWEB-<display_id>` for
+  idempotency. Failures alert `ADMIN_REPORT_EMAIL` and never block the checkout.
+- **Catalog in** — `src/jobs/sync-omie-catalog.ts` runs every 5 minutes (or on
+  demand via `POST /admin/omie-sync`): reads `ListarPosEstoque` +
+  `ListarProdutos` and overwrites Medusa inventory levels and variant BRL
+  prices. **Omie is the source of truth for stock and price** — never edit
+  those in Medusa Admin, they will be overwritten. Inactive Omie products are
+  zeroed out (sold out on the site). Active Omie products with no matching
+  site SKU are auto-created as **draft** products (with any photos attached in
+  Omie) — add the visual identity and publish in the admin to put them on the
+  site. Presentation data (title, notes, swatch, images, metadata) of existing
+  products stays curated in Medusa and is never overwritten.
+- **Product images** — stored in S3-compatible object storage behind a CDN
+  (Supabase Storage bucket via `@medusajs/medusa/file-s3`; see the `S3_*` vars
+  in `.env.example`). Upload through Medusa Admin; the public URL is saved on
+  the product and reused by the storefront, marketplaces and catalog feeds.
+- **SKU contract** — the Medusa variant SKU must equal the Omie product code
+  (`código do produto`). Unmatched SKUs are skipped and logged.
+- **Config discovery** — `npx medusa exec ./src/scripts/omie-list-config.ts`
+  lists your Omie categories and contas correntes with the codes to put in
+  `OMIE_CODIGO_CATEGORIA` / `OMIE_CODIGO_CONTA_CORRENTE`.
+- NF-e emission happens in Omie, driven by the order stage (`OMIE_ETAPA`) and the
+  billing automation configured there. The checkout collects the buyer's CPF
+  (stored in `shipping_address.metadata.cpf`) so invoices can be issued
+  automatically.
+- The health monitor (`/app/health` + 5-min job) includes an Omie API probe.
 
 ## Responsibilities
 
